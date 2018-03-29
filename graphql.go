@@ -2,10 +2,10 @@ package graphql
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
-	"encoding/json"
-
+	"github.com/graph-gophers/graphql-go/config"
 	"github.com/graph-gophers/graphql-go/errors"
 	"github.com/graph-gophers/graphql-go/internal/common"
 	"github.com/graph-gophers/graphql-go/internal/exec"
@@ -22,13 +22,21 @@ import (
 // ParseSchema parses a GraphQL schema and attaches the given root resolver. It returns an error if
 // the Go type signature of the resolvers does not match the schema. If nil is passed as the
 // resolver, then the schema can not be executed, but it may be inspected (e.g. with ToJSON).
-func ParseSchema(schemaString string, resolver interface{}, opts ...SchemaOpt) (*Schema, error) {
+func ParseSchema(schemaString string, resolver interface{}, conf *config.Config, opts ...SchemaOpt) (*Schema, error) {
+
+	// set default values in case config is null
+	if conf == nil {
+		conf = config.Default()
+	}
+
 	s := &Schema{
-		schema:         schema.New(),
+		schema:         schema.New(conf),
+		config:         conf,
 		maxParallelism: 10,
 		tracer:         trace.OpenTracingTracer{},
 		logger:         &log.DefaultLogger{},
 	}
+
 	for _, opt := range opts {
 		opt(s)
 	}
@@ -49,8 +57,8 @@ func ParseSchema(schemaString string, resolver interface{}, opts ...SchemaOpt) (
 }
 
 // MustParseSchema calls ParseSchema and panics on error.
-func MustParseSchema(schemaString string, resolver interface{}, opts ...SchemaOpt) *Schema {
-	s, err := ParseSchema(schemaString, resolver, opts...)
+func MustParseSchema(schemaString string, resolver interface{}, conf *config.Config, opts ...SchemaOpt) *Schema {
+	s, err := ParseSchema(schemaString, resolver, conf, opts...)
 	if err != nil {
 		panic(err)
 	}
@@ -61,6 +69,7 @@ func MustParseSchema(schemaString string, resolver interface{}, opts ...SchemaOp
 type Schema struct {
 	schema *schema.Schema
 	res    *resolvable.Schema
+	config *config.Config
 
 	maxParallelism int
 	tracer         trace.Tracer
