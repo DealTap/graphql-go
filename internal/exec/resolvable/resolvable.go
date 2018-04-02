@@ -208,7 +208,8 @@ func makeScalarExec(t *schema.Scalar, resolverType reflect.Type) (Resolvable, er
 	return &Scalar{}, nil
 }
 
-func (b *execBuilder) makeObjectExec(typeName string, fields schema.FieldList, possibleTypes []*schema.Object, nonNull bool, resolverType reflect.Type) (*Object, error) {
+func (b *execBuilder) makeObjectExec(typeName string, fields schema.FieldList, possibleTypes []*schema.Object,
+	nonNull bool, resolverType reflect.Type) (*Object, error) {
 
 	if !nonNull {
 		if resolverType.Kind() != reflect.Ptr && resolverType.Kind() != reflect.Interface {
@@ -219,19 +220,22 @@ func (b *execBuilder) makeObjectExec(typeName string, fields schema.FieldList, p
 	methodHasReceiver := resolverType.Kind() != reflect.Interface
 
 	Fields := make(map[string]*Field)
+	rt := unwrapPtr(resolverType)
 	for _, f := range fields {
 		methodIndex := -1
 		fieldIndex := -1
-		rt := unwrapPtr(resolverType)
 
 		/**
-		 * 1) Use resolver type's method for
+		 * 1) Use resolver type's method when
 		 *		1.1) __Type and __Schema requests
-		 *		1.2) or when field has arguments
+		 *		1.2) or field has arguments
 		 *		1.3) or it is configured to use method
+		 *		1.4) or it is an interface
 		 * 2) Otherwise use resolver type's field
 		 */
-		if isResolverSchemaOrType(rt) == true || len(f.Args) > 0 || conf.UseResolverMethods == true {
+		//fmt.Printf("resName=%s, fName=%s\n", rt.Name(), f.Name)
+		if isResolverSchemaOrType(rt) == true || len(f.Args) > 0 ||
+			conf.UseResolverMethods == true || rt.Kind() == reflect.Interface {
 			methodIndex = findMethod(resolverType, f.Name)
 		} else {
 			fieldIndex = findField(rt, f.Name)
@@ -259,22 +263,27 @@ func (b *execBuilder) makeObjectExec(typeName string, fields schema.FieldList, p
 		Fields[f.Name] = fe
 	}
 
+	// check type assertions when
+	// 	1) __Type and __Schema requests
+	//	2) or it is configured to use method
 	typeAssertions := make(map[string]*TypeAssertion)
-	for _, impl := range possibleTypes {
-		methodIndex := findMethod(resolverType, "To"+impl.Name)
-		if methodIndex == -1 {
-			return nil, fmt.Errorf("%s does not resolve %q: missing method %q to convert to %q", resolverType, typeName, "To"+impl.Name, impl.Name)
+	if isResolverSchemaOrType(rt) == true || conf.UseResolverMethods == true {
+		for _, impl := range possibleTypes {
+			methodIndex := findMethod(resolverType, "To"+impl.Name)
+			if methodIndex == -1 {
+				return nil, fmt.Errorf("%s does not resolve %q: missing method %q to convert to %q", resolverType, typeName, "To"+impl.Name, impl.Name)
+			}
+			if resolverType.Method(methodIndex).Type.NumOut() != 2 {
+				return nil, fmt.Errorf("%s does not resolve %q: method %q should return a value and a bool indicating success", resolverType, typeName, "To"+impl.Name)
+			}
+			a := &TypeAssertion{
+				MethodIndex: methodIndex,
+			}
+			if err := b.assignExec(&a.TypeExec, impl, resolverType.Method(methodIndex).Type.Out(0)); err != nil {
+				return nil, err
+			}
+			typeAssertions[impl.Name] = a
 		}
-		if resolverType.Method(methodIndex).Type.NumOut() != 2 {
-			return nil, fmt.Errorf("%s does not resolve %q: method %q should return a value and a bool indicating success", resolverType, typeName, "To"+impl.Name)
-		}
-		a := &TypeAssertion{
-			MethodIndex: methodIndex,
-		}
-		if err := b.assignExec(&a.TypeExec, impl, resolverType.Method(methodIndex).Type.Out(0)); err != nil {
-			return nil, err
-		}
-		typeAssertions[impl.Name] = a
 	}
 
 	return &Object{
