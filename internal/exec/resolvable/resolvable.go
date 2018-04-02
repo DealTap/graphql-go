@@ -227,13 +227,12 @@ func (b *execBuilder) makeObjectExec(typeName string, fields schema.FieldList, p
 
 		/**
 		 * 1) Use resolver type's method when
-		 *		1.1) __Type and __Schema requests
-		 *		1.2) or field has arguments
-		 *		1.3) or it is configured to use method
-		 *		1.4) or it is an interface
+		 *	1.1) __Type and __Schema requests
+		 *	1.2) Or field has arguments
+		 *	1.3) Or it is configured to use method
+		 *	1.4) Or it is an interface
 		 * 2) Otherwise use resolver type's field
 		 */
-		//fmt.Printf("resName=%s, fName=%s\n", rt.Name(), f.Name)
 		if isResolverSchemaOrType(rt) == true || len(f.Args) > 0 ||
 			conf.UseResolverMethods == true || rt.Kind() == reflect.Interface {
 			methodIndex = findMethod(resolverType, f.Name)
@@ -263,9 +262,11 @@ func (b *execBuilder) makeObjectExec(typeName string, fields schema.FieldList, p
 		Fields[f.Name] = fe
 	}
 
-	// check type assertions when
-	// 	1) __Type and __Schema requests
-	//	2) or it is configured to use method
+	/**
+	 * Check type assertions when
+	 *	1) __Type and __Schema requests
+	 *	2) Or it is configured to use method
+	 */
 	typeAssertions := make(map[string]*TypeAssertion)
 	if isResolverSchemaOrType(rt) == true || conf.UseResolverMethods == true {
 		for _, impl := range possibleTypes {
@@ -303,6 +304,7 @@ func (b *execBuilder) makeFieldExec(typeName string, f *schema.Field, m reflect.
 	var hasError bool
 	var hasContext bool
 
+	// Validate resolver method only when there is one
 	if methodIndex != -1 {
 		in := make([]reflect.Type, m.Type.NumIn())
 		for i := range in {
