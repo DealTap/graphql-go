@@ -99,6 +99,14 @@ func UseFieldResolvers() SchemaOpt {
 	}
 }
 
+// Specifies the maximum depth allowed in the query selection. The default is set to 5.
+// This prevents infinite selection of recursive fields
+func MaxDepth(n int) SchemaOpt {
+	return func(s *Schema) {
+		s.schema.MaxDepth = n
+	}
+}
+
 // Response represents a typical response of a GraphQL server. It may be encoded to JSON directly or
 // it may be further processed to a custom response type, for example to include custom error data.
 type Response struct {

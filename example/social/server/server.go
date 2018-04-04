@@ -12,7 +12,11 @@ import (
 var schema *graphql.Schema
 
 func init() {
-	opts := []graphql.SchemaOpt{graphql.UseFieldResolvers(), graphql.MaxParallelism(20)}
+	opts := []graphql.SchemaOpt{
+		graphql.UseFieldResolvers(),
+		graphql.MaxParallelism(20),
+		graphql.MaxDepth(10),
+	}
 	schema = graphql.MustParseSchema(social.Schema, &social.Resolver{}, opts...)
 }
 

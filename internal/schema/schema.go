@@ -47,6 +47,7 @@ type Schema struct {
 	enums           []*Enum
 
 	UseFieldResolvers bool
+	MaxDepth int
 }
 
 // Resolve a named type in the schema by its name.
@@ -237,6 +238,7 @@ func New() *Schema {
 		entryPointNames: make(map[string]string),
 		Types:           make(map[string]NamedType),
 		Directives:      make(map[string]*DirectiveDecl),
+		MaxDepth:        5,
 	}
 	for n, t := range Meta.Types {
 		s.Types[n] = t

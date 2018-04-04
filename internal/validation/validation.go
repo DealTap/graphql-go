@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"text/scanner"
@@ -111,6 +112,8 @@ func Validate(s *schema.Schema, doc *query.Document) []*errors.QueryError {
 			panic("unreachable")
 		}
 
+		validateDepth(opc, op.Selections, entryPoint, s.MaxDepth)
+
 		validateSelectionSet(opc, op.Selections, entryPoint)
 
 		fragUsed := make(map[*query.FragmentDecl]struct{})
@@ -164,6 +167,54 @@ func Validate(s *schema.Schema, doc *query.Document) []*errors.QueryError {
 	}
 
 	return c.errs
+}
+
+/**
+ * Validates maximum depth for the query selection sets.
+ * Increments computed depth by 1 to include root node.
+ */
+func validateDepth(c *opContext, selections []query.Selection, t schema.NamedType, maxDepth int) {
+	fragments := &c.doc.Fragments
+	for _, sel := range selections {
+		depth := 1 + computeDepth(sel, fragments, 0)
+		if depth > maxDepth {
+			// safe to assume that root node of selection will be the field type
+			s := sel.(*query.Field)
+			c.addErr(s.Alias.Loc, "MaximumDepth", "%s exceeds maximum operation depth %d for selection set %s", t.TypeName(), depth, s.Name.Name)
+		}
+	}
+}
+
+/**
+ * Computes depth for the selection node.
+ * Does not increment depth counter for fragments because
+ * the current node is the root node for the fragment
+ */
+func computeDepth(node query.Selection, fragments *query.FragmentList, depth int) int {
+	size := len(node.GetSelections())
+	switch sel := node.(type) {
+	case *query.Field:
+		if size == 0 {
+			return 0
+		} else {
+			return 1 + determineDepth(sel, fragments, depth+1)
+		}
+	case *query.InlineFragment:
+		return determineDepth(sel, fragments, depth)
+	case *query.FragmentSpread:
+		return determineDepth(fragments.Get(sel.Name.Name), fragments, depth)
+	}
+	return 0
+}
+
+// Determine maximum depth for the selection node's children
+func determineDepth(node query.Selection, fragments *query.FragmentList, depth int) int {
+	var depths []int
+	for _, s := range node.GetSelections() {
+		depths = append(depths, computeDepth(s, fragments, depth))
+	}
+	sort.Ints(depths)
+	return depths[len(depths)-1]
 }
 
 func validateSelectionSet(c *opContext, sels []query.Selection, t schema.NamedType) {
