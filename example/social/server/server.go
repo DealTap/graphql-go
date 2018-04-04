@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/graph-gophers/graphql-go"
-	"github.com/graph-gophers/graphql-go/config"
 	"github.com/graph-gophers/graphql-go/example/social"
 	"github.com/graph-gophers/graphql-go/relay"
 )
@@ -13,7 +12,8 @@ import (
 var schema *graphql.Schema
 
 func init() {
-	schema = graphql.MustParseSchema(social.Schema, &social.Resolver{}, &config.Config{UseResolverMethods: false})
+	opts := []graphql.SchemaOpt{graphql.UseFieldResolvers(), graphql.MaxParallelism(20)}
+	schema = graphql.MustParseSchema(social.Schema, &social.Resolver{}, opts...)
 }
 
 func main() {

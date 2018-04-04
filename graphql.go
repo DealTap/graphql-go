@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/graph-gophers/graphql-go/config"
 	"github.com/graph-gophers/graphql-go/errors"
 	"github.com/graph-gophers/graphql-go/internal/common"
 	"github.com/graph-gophers/graphql-go/internal/exec"
@@ -22,16 +21,10 @@ import (
 // ParseSchema parses a GraphQL schema and attaches the given root resolver. It returns an error if
 // the Go type signature of the resolvers does not match the schema. If nil is passed as the
 // resolver, then the schema can not be executed, but it may be inspected (e.g. with ToJSON).
-func ParseSchema(schemaString string, resolver interface{}, conf *config.Config, opts ...SchemaOpt) (*Schema, error) {
-
-	// set default values in case config is null
-	if conf == nil {
-		conf = config.Default()
-	}
+func ParseSchema(schemaString string, resolver interface{}, opts ...SchemaOpt) (*Schema, error) {
 
 	s := &Schema{
-		schema:         schema.New(conf),
-		config:         conf,
+		schema:         schema.New(),
 		maxParallelism: 10,
 		tracer:         trace.OpenTracingTracer{},
 		logger:         &log.DefaultLogger{},
@@ -46,7 +39,7 @@ func ParseSchema(schemaString string, resolver interface{}, conf *config.Config,
 	}
 
 	if resolver != nil {
-		r, err := resolvable.ApplyResolver(s.schema, resolver)
+		r, err := resolvable.ApplyResolver(s.schema, resolver, s.useFieldResolvers)
 		if err != nil {
 			return nil, err
 		}
@@ -57,8 +50,8 @@ func ParseSchema(schemaString string, resolver interface{}, conf *config.Config,
 }
 
 // MustParseSchema calls ParseSchema and panics on error.
-func MustParseSchema(schemaString string, resolver interface{}, conf *config.Config, opts ...SchemaOpt) *Schema {
-	s, err := ParseSchema(schemaString, resolver, conf, opts...)
+func MustParseSchema(schemaString string, resolver interface{}, opts ...SchemaOpt) *Schema {
+	s, err := ParseSchema(schemaString, resolver, opts...)
 	if err != nil {
 		panic(err)
 	}
@@ -69,11 +62,11 @@ func MustParseSchema(schemaString string, resolver interface{}, conf *config.Con
 type Schema struct {
 	schema *schema.Schema
 	res    *resolvable.Schema
-	config *config.Config
 
-	maxParallelism int
-	tracer         trace.Tracer
-	logger         log.Logger
+	maxParallelism    int
+	tracer            trace.Tracer
+	logger            log.Logger
+	useFieldResolvers bool
 }
 
 // SchemaOpt is an option to pass to ParseSchema or MustParseSchema.
@@ -97,6 +90,13 @@ func Tracer(tracer trace.Tracer) SchemaOpt {
 func Logger(logger log.Logger) SchemaOpt {
 	return func(s *Schema) {
 		s.logger = logger
+	}
+}
+
+// Specifies whether to use struct field resolvers
+func UseFieldResolvers() SchemaOpt {
+	return func(s *Schema) {
+		s.useFieldResolvers = true
 	}
 }
 

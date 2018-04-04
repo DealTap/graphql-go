@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/graph-gophers/graphql-go/config"
 	"github.com/graph-gophers/graphql-go/internal/common"
 	"github.com/graph-gophers/graphql-go/internal/exec/packer"
 	"github.com/graph-gophers/graphql-go/internal/schema"
@@ -58,14 +57,13 @@ func (*List) isResolvable()   {}
 func (*Scalar) isResolvable() {}
 
 // TODO figure out a better way to handle passed config
-// use this to save passed config in order to use it in functions or later
 // this approach avoids updating signature of many functions
-var conf *config.Config
+var useFieldResolvers bool
 
-func ApplyResolver(s *schema.Schema, resolver interface{}) (*Schema, error) {
+func ApplyResolver(s *schema.Schema, resolver interface{}, useFieldRes bool) (*Schema, error) {
 
 	b := newBuilder(s)
-	conf = s.Config
+	useFieldResolvers = useFieldRes
 
 	var query, mutation Resolvable
 
@@ -234,7 +232,7 @@ func (b *execBuilder) makeObjectExec(typeName string, fields schema.FieldList, p
 		 * 2) Otherwise use resolver type's field
 		 */
 		if isResolverSchemaOrType(rt) == true || len(f.Args) > 0 ||
-			conf.UseResolverMethods == true || rt.Kind() == reflect.Interface {
+			useFieldResolvers == false || rt.Kind() == reflect.Interface {
 			methodIndex = findMethod(resolverType, f.Name)
 		} else {
 			fieldIndex = findField(rt, f.Name)
@@ -268,7 +266,7 @@ func (b *execBuilder) makeObjectExec(typeName string, fields schema.FieldList, p
 	 *	2) Or it is configured to use method
 	 */
 	typeAssertions := make(map[string]*TypeAssertion)
-	if isResolverSchemaOrType(rt) == true || conf.UseResolverMethods == true {
+	if isResolverSchemaOrType(rt) == true || useFieldResolvers == false {
 		for _, impl := range possibleTypes {
 			methodIndex := findMethod(resolverType, "To"+impl.Name)
 			if methodIndex == -1 {

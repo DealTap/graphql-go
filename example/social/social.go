@@ -2,7 +2,6 @@ package social
 
 import (
 	"context"
-	"errors"
 	"fmt"
 )
 
@@ -157,14 +156,14 @@ func (r *Resolver) Admin(ctx context.Context, args struct {
 			return *usr, nil
 		}
 	}
-	err := fmt.Sprintf("user with id=%s and role=%s does not exist", args.Id, args.Role)
-	return user{}, errors.New(err)
+	err := fmt.Errorf("user with id=%s and role=%s does not exist", args.Id, args.Role)
+	return user{}, err
 }
 
 func (r *Resolver) User(ctx context.Context, args struct{ Id string }) (user, error) {
 	if usr, ok := usersMap[args.Id]; ok {
 		return *usr, nil
 	}
-	err := fmt.Sprintf("user with id=%s does not exist", args.Id)
-	return user{}, errors.New(err)
+	err := fmt.Errorf("user with id=%s does not exist", args.Id)
+	return user{}, err
 }
