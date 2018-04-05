@@ -56,14 +56,9 @@ func (*Object) isResolvable() {}
 func (*List) isResolvable()   {}
 func (*Scalar) isResolvable() {}
 
-// TODO figure out a better way to handle passed config
-// this approach avoids updating signature of many functions
-var useFieldResolvers bool
-
-func ApplyResolver(s *schema.Schema, resolver interface{}, useFieldRes bool) (*Schema, error) {
+func ApplyResolver(s *schema.Schema, resolver interface{}) (*Schema, error) {
 
 	b := newBuilder(s)
-	useFieldResolvers = useFieldRes
 
 	var query, mutation Resolvable
 
@@ -232,7 +227,7 @@ func (b *execBuilder) makeObjectExec(typeName string, fields schema.FieldList, p
 		 * 2) Otherwise use resolver type's field
 		 */
 		if isResolverSchemaOrType(rt) == true || len(f.Args) > 0 ||
-			useFieldResolvers == false || rt.Kind() == reflect.Interface {
+			b.schema.UseFieldResolvers == false || rt.Kind() == reflect.Interface {
 			methodIndex = findMethod(resolverType, f.Name)
 		} else {
 			fieldIndex = findField(rt, f.Name)
@@ -266,7 +261,7 @@ func (b *execBuilder) makeObjectExec(typeName string, fields schema.FieldList, p
 	 *	2) Or it is configured to use method
 	 */
 	typeAssertions := make(map[string]*TypeAssertion)
-	if isResolverSchemaOrType(rt) == true || useFieldResolvers == false {
+	if isResolverSchemaOrType(rt) == true || b.schema.UseFieldResolvers == false {
 		for _, impl := range possibleTypes {
 			methodIndex := findMethod(resolverType, "To"+impl.Name)
 			if methodIndex == -1 {

@@ -61,7 +61,7 @@ func (r *timeResolver) AddHour(args struct{ Time graphql.Time }) graphql.Time {
 	return graphql.Time{Time: args.Time.Add(time.Hour)}
 }
 
-var starwarsSchema = graphql.MustParseSchema(starwars.Schema, &starwars.Resolver{}, nil)
+var starwarsSchema = graphql.MustParseSchema(starwars.Schema, &starwars.Resolver{})
 
 func TestHelloWorld(t *testing.T) {
 	gqltesting.RunTests(t, []*gqltesting.Test{

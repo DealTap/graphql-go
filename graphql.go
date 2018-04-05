@@ -39,7 +39,7 @@ func ParseSchema(schemaString string, resolver interface{}, opts ...SchemaOpt) (
 	}
 
 	if resolver != nil {
-		r, err := resolvable.ApplyResolver(s.schema, resolver, s.useFieldResolvers)
+		r, err := resolvable.ApplyResolver(s.schema, resolver)
 		if err != nil {
 			return nil, err
 		}
@@ -63,10 +63,9 @@ type Schema struct {
 	schema *schema.Schema
 	res    *resolvable.Schema
 
-	maxParallelism    int
-	tracer            trace.Tracer
-	logger            log.Logger
-	useFieldResolvers bool
+	maxParallelism int
+	tracer         trace.Tracer
+	logger         log.Logger
 }
 
 // SchemaOpt is an option to pass to ParseSchema or MustParseSchema.
@@ -96,7 +95,7 @@ func Logger(logger log.Logger) SchemaOpt {
 // Specifies whether to use struct field resolvers
 func UseFieldResolvers() SchemaOpt {
 	return func(s *Schema) {
-		s.useFieldResolvers = true
+		s.schema.UseFieldResolvers = true
 	}
 }
 
