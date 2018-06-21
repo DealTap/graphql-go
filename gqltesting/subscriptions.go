@@ -69,7 +69,7 @@ func RunSubscribe(t *testing.T, test *TestSubscription) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		got, err := formatJSON(resData)
+		got := formatJSON(t, resData)
 		if err != nil {
 			t.Fatalf("got: invalid JSON: %s", err)
 		}
@@ -78,7 +78,7 @@ func RunSubscribe(t *testing.T, test *TestSubscription) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		want, err := formatJSON(expectedData)
+		want := formatJSON(t, expectedData)
 		if err != nil {
 			t.Fatalf("got: invalid JSON: %s", err)
 		}
