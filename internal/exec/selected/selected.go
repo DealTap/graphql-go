@@ -4,10 +4,8 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
-	"time"
 
 	"github.com/graph-gophers/graphql-go/errors"
-	"github.com/graph-gophers/graphql-go/internal/common"
 	"github.com/graph-gophers/graphql-go/internal/exec/packer"
 	"github.com/graph-gophers/graphql-go/internal/exec/resolvable"
 	"github.com/graph-gophers/graphql-go/internal/query"
@@ -46,12 +44,13 @@ type Selection interface {
 
 type SchemaField struct {
 	resolvable.Field
-	Alias       string
-	Args        map[string]interface{}
-	PackedArgs  reflect.Value
-	Sels        []Selection
-	Async       bool
-	FixedResult reflect.Value
+	Alias         string
+	Args          map[string]interface{}
+	PackedArgs    reflect.Value
+	Sels          []Selection
+	Async         bool
+	FixedResult   reflect.Value
+	DirectiveFunc DirectiveFunc
 }
 
 type TypeAssertion struct {
@@ -133,13 +132,15 @@ func applySelectionSet(r *Request, e *resolvable.Object, sels []query.Selection)
 				}
 
 				fieldSels := applyField(r, fe.ValueExec, field.Selections)
+				directiveFunc := makeDirective(r, field.Directives)
 				flattenedSels = append(flattenedSels, &SchemaField{
-					Field:      *fe,
-					Alias:      field.Alias.Name,
-					Args:       args,
-					PackedArgs: packedArgs,
-					Sels:       fieldSels,
-					Async:      fe.HasContext || fe.ArgsPacker != nil || fe.HasError || HasAsyncSel(fieldSels),
+					Field:         *fe,
+					Alias:         field.Alias.Name,
+					Args:          args,
+					PackedArgs:    packedArgs,
+					Sels:          fieldSels,
+					Async:         fe.HasContext || fe.ArgsPacker != nil || fe.HasError || HasAsyncSel(fieldSels),
+					DirectiveFunc: directiveFunc,
 				})
 			}
 
@@ -190,58 +191,6 @@ func applyField(r *Request, e resolvable.Resolvable, sels []query.Selection) []S
 	default:
 		panic("unreachable")
 	}
-}
-
-func skipByDirective(r *Request, directives common.DirectiveList) bool {
-	if d := directives.Get("skip"); d != nil {
-		p := packer.ValuePacker{ValueType: reflect.TypeOf(false)}
-		v, err := p.Pack(d.Args.MustGet("if").Value(r.Vars))
-		if err != nil {
-			r.AddError(errors.Errorf("%s", err))
-		}
-		if err == nil && v.Bool() {
-			return true
-		}
-	}
-
-	if d := directives.Get("include"); d != nil {
-		p := packer.ValuePacker{ValueType: reflect.TypeOf(false)}
-		v, err := p.Pack(d.Args.MustGet("if").Value(r.Vars))
-		if err != nil {
-			r.AddError(errors.Errorf("%s", err))
-		}
-		if err == nil && !v.Bool() {
-			return true
-		}
-	}
-
-	return false
-}
-
-func modifyByDirective(r *Request, directives common.DirectiveList) interface{} {
-	if d := directives.Get("date"); d != nil {
-		var layout string
-		p := packer.ValuePacker{ValueType: reflect.TypeOf("")}
-		l, ok := d.Args.Get("as")
-		if ok {
-			v, err := p.Pack(l.Value(r.Vars))
-			if err != nil {
-				r.AddError(errors.Errorf("%s", err))
-				layout = v.String()
-			} else {
-				layout = time.RFC3339
-			}
-		} else {
-			layout = time.RFC3339
-		}
-		t, err := time.Parse(layout, "")
-		if err != nil {
-			r.AddError(errors.Errorf("%s", err))
-		}
-		return t.Format(layout)
-	}
-
-	return nil
 }
 
 func HasAsyncSel(sels []Selection) bool {

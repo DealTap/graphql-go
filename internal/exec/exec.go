@@ -176,6 +176,14 @@ func execFieldSelection(ctx context.Context, r *Request, f *fieldToExec, path *p
 
 		if f.field.MethodIndex != -1 {
 			var in []reflect.Value
+			if f.field.DirectiveFunc != nil {
+				err := f.field.DirectiveFunc()
+				if err != nil {
+					return errors.Errorf("%s", err)
+				}
+				return nil
+			}
+
 			if f.field.HasContext {
 				// lazily evaluate
 				resCtx := context.WithValue(traceCtx, pubselected.ContextKey, selectedFields(f.sels))
