@@ -46,6 +46,11 @@ var metaSrc = `
 		reason: String = "No longer supported"
 	) on FIELD_DEFINITION | ENUM_VALUE
 
+	# Directs the executor to format this field according to the ` + "`" + `as` + "`" + ` argument specified layout.
+	directive @date(
+		as: String!
+	) on FIELD
+
 	# A Directive provides a way to describe alternate runtime execution and type validation behavior in a GraphQL document.
 	#
 	# In some cases, you need to provide options to alter GraphQL's execution behavior

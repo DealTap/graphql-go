@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
+	"time"
 
 	"github.com/graph-gophers/graphql-go/errors"
 	"github.com/graph-gophers/graphql-go/internal/common"
@@ -215,6 +216,32 @@ func skipByDirective(r *Request, directives common.DirectiveList) bool {
 	}
 
 	return false
+}
+
+func modifyByDirective(r *Request, directives common.DirectiveList) interface{} {
+	if d := directives.Get("date"); d != nil {
+		var layout string
+		p := packer.ValuePacker{ValueType: reflect.TypeOf("")}
+		l, ok := d.Args.Get("as")
+		if ok {
+			v, err := p.Pack(l.Value(r.Vars))
+			if err != nil {
+				r.AddError(errors.Errorf("%s", err))
+				layout = v.String()
+			} else {
+				layout = time.RFC3339
+			}
+		} else {
+			layout = time.RFC3339
+		}
+		t, err := time.Parse(layout, "")
+		if err != nil {
+			r.AddError(errors.Errorf("%s", err))
+		}
+		return t.Format(layout)
+	}
+
+	return nil
 }
 
 func HasAsyncSel(sels []Selection) bool {
