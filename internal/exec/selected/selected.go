@@ -2,11 +2,11 @@ package selected
 
 import (
 	"fmt"
+	"net/http"
 	"reflect"
 	"sync"
 
 	"github.com/graph-gophers/graphql-go/errors"
-	"github.com/graph-gophers/graphql-go/internal/common"
 	"github.com/graph-gophers/graphql-go/internal/exec/packer"
 	"github.com/graph-gophers/graphql-go/internal/exec/resolvable"
 	"github.com/graph-gophers/graphql-go/internal/query"
@@ -32,6 +32,10 @@ func ApplyOperation(r *Request, s *resolvable.Schema, op *query.Operation) []Sel
 	var obj *resolvable.Object
 	switch op.Type {
 	case query.Query:
+		if authDirective(r, op.Directives) == false {
+			r.AddError(errors.Errorf("%s", http.StatusText(http.StatusUnauthorized)))
+			return nil
+		}
 		obj = s.Query.(*resolvable.Object)
 	case query.Mutation:
 		obj = s.Mutation.(*resolvable.Object)
@@ -45,12 +49,13 @@ type Selection interface {
 
 type SchemaField struct {
 	resolvable.Field
-	Alias       string
-	Args        map[string]interface{}
-	PackedArgs  reflect.Value
-	Sels        []Selection
-	Async       bool
-	FixedResult reflect.Value
+	Alias                string
+	Args                 map[string]interface{}
+	PackedArgs           reflect.Value
+	Sels                 []Selection
+	Async                bool
+	FixedResult          reflect.Value
+	StringDirectiveFuncs []StringDirectiveFunc
 }
 
 type TypeAssertion struct {
@@ -132,13 +137,15 @@ func applySelectionSet(r *Request, e *resolvable.Object, sels []query.Selection)
 				}
 
 				fieldSels := applyField(r, fe.ValueExec, field.Selections)
+				stringDirectives := extractStringDirectives(r, field.Directives)
 				flattenedSels = append(flattenedSels, &SchemaField{
-					Field:      *fe,
-					Alias:      field.Alias.Name,
-					Args:       args,
-					PackedArgs: packedArgs,
-					Sels:       fieldSels,
-					Async:      fe.HasContext || fe.ArgsPacker != nil || fe.HasError || HasAsyncSel(fieldSels),
+					Field:                *fe,
+					Alias:                field.Alias.Name,
+					Args:                 args,
+					PackedArgs:           packedArgs,
+					Sels:                 fieldSels,
+					Async:                fe.HasContext || fe.ArgsPacker != nil || fe.HasError || HasAsyncSel(fieldSels),
+					StringDirectiveFuncs: stringDirectives,
 				})
 			}
 
@@ -189,32 +196,6 @@ func applyField(r *Request, e resolvable.Resolvable, sels []query.Selection) []S
 	default:
 		panic("unreachable")
 	}
-}
-
-func skipByDirective(r *Request, directives common.DirectiveList) bool {
-	if d := directives.Get("skip"); d != nil {
-		p := packer.ValuePacker{ValueType: reflect.TypeOf(false)}
-		v, err := p.Pack(d.Args.MustGet("if").Value(r.Vars))
-		if err != nil {
-			r.AddError(errors.Errorf("%s", err))
-		}
-		if err == nil && v.Bool() {
-			return true
-		}
-	}
-
-	if d := directives.Get("include"); d != nil {
-		p := packer.ValuePacker{ValueType: reflect.TypeOf(false)}
-		v, err := p.Pack(d.Args.MustGet("if").Value(r.Vars))
-		if err != nil {
-			r.AddError(errors.Errorf("%s", err))
-		}
-		if err == nil && !v.Bool() {
-			return true
-		}
-	}
-
-	return false
 }
 
 func HasAsyncSel(sels []Selection) bool {

@@ -176,6 +176,7 @@ func execFieldSelection(ctx context.Context, r *Request, f *fieldToExec, path *p
 
 		if f.field.MethodIndex != -1 {
 			var in []reflect.Value
+
 			if f.field.HasContext {
 				// lazily evaluate
 				resCtx := context.WithValue(traceCtx, pubselected.ContextKey, selectedFields(f.sels))
@@ -201,6 +202,18 @@ func execFieldSelection(ctx context.Context, r *Request, f *fieldToExec, path *p
 				res = res.Elem()
 			}
 			result = res.Field(f.field.FieldIndex)
+
+			if result.Kind() == reflect.String && len(f.field.StringDirectiveFuncs) != 0 {
+				var str string
+				for i, directiveFunc := range f.field.StringDirectiveFuncs {
+					if i == 0 {
+						str = directiveFunc(result.String())
+					} else {
+						str = directiveFunc(str)
+					}
+				}
+				result = reflect.ValueOf(&str).Elem()
+			}
 		}
 
 		return nil

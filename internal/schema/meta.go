@@ -46,6 +46,24 @@ var metaSrc = `
 		reason: String = "No longer supported"
 	) on FIELD_DEFINITION | ENUM_VALUE
 
+	# Directs the executor to format this field to upper case according to the ` + "`" + `if` + "`" + ` argument is true.
+	directive @strings_upper(
+		if: Boolean!
+	) on FIELD
+
+	# Directs the executor to format this field to lower case according to the ` + "`" + `if` + "`" + ` argument is true.
+	directive @strings_lower(
+		if: Boolean!
+	) on FIELD
+
+	# Directs the executor to format this field to be titled according to the ` + "`" + `if` + "`" + ` argument is true.
+	directive @strings_title(
+		if: Boolean!
+	) on FIELD
+
+	# TODO: Auth directives.
+	directive @is_authenticated on QUERY
+
 	# A Directive provides a way to describe alternate runtime execution and type validation behavior in a GraphQL document.
 	#
 	# In some cases, you need to provide options to alter GraphQL's execution behavior
