@@ -47,19 +47,23 @@ var metaSrc = `
 	) on FIELD_DEFINITION | ENUM_VALUE
 
 	# Directs the executor to format this field to upper case according to the ` + "`" + `if` + "`" + ` argument is true.
-	directive @to_upper(
+	directive @strings_upper(
 		if: Boolean!
 	) on FIELD
 
-	# Directs the executor to format this field to upper case according to the ` + "`" + `if` + "`" + ` argument is true.
-	directive @to_lower(
+	# Directs the executor to format this field to lower case according to the ` + "`" + `if` + "`" + ` argument is true.
+	directive @strings_lower(
 		if: Boolean!
 	) on FIELD
 
-	# Directs the executor to format this field to upper case according to the ` + "`" + `if` + "`" + ` argument is true.
-	directive @to_title(
+	# Directs the executor to format this field to be titled according to the ` + "`" + `if` + "`" + ` argument is true.
+	directive @strings_title(
 		if: Boolean!
 	) on FIELD
+
+	# Auth directives.
+	directive @is_authenticated on QUERY | FIELD
+	directive @has_scope on QUERY | FIELD
 
 	# A Directive provides a way to describe alternate runtime execution and type validation behavior in a GraphQL document.
 	#

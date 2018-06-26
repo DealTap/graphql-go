@@ -203,8 +203,15 @@ func execFieldSelection(ctx context.Context, r *Request, f *fieldToExec, path *p
 			}
 			result = res.Field(f.field.FieldIndex)
 
-			if result.Kind() == reflect.String && f.field.DirectiveFunc != nil {
-				str := f.field.DirectiveFunc(result.String())
+			if result.Kind() == reflect.String && len(f.field.StringDirectiveFuncs) != 0 {
+				var str string
+				for i, directiveFunc := range f.field.StringDirectiveFuncs {
+					if i == 0 {
+						str = directiveFunc(result.String())
+					} else {
+						str = directiveFunc(str)
+					}
+				}
 				result = reflect.ValueOf(&str).Elem()
 			}
 		}

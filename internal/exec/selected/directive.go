@@ -9,8 +9,6 @@ import (
 	"github.com/graph-gophers/graphql-go/internal/exec/packer"
 )
 
-type DirectiveFunc func(string) string
-
 func skipByDirective(r *Request, directives common.DirectiveList) bool {
 	if d := directives.Get("skip"); d != nil {
 		p := packer.ValuePacker{ValueType: reflect.TypeOf(false)}
@@ -37,39 +35,46 @@ func skipByDirective(r *Request, directives common.DirectiveList) bool {
 	return false
 }
 
-func makeDirective(r *Request, directives common.DirectiveList) DirectiveFunc {
-	if d := directives.Get("to_upper"); d != nil {
+type StringDirectiveFunc func(string) string
+
+const (
+	stringDirectiveUpper = "strings_upper"
+	stringDirectiveLower = "strings_lower"
+	stringDirectiveTitle = "strings_title"
+)
+
+func extractStringDirectives(r *Request, directives common.DirectiveList) []StringDirectiveFunc {
+	var stringDirectives []StringDirectiveFunc
+
+	packerFunc := func(r *Request, d *common.Directive) (reflect.Value, error) {
 		p := packer.ValuePacker{ValueType: reflect.TypeOf(false)}
 		v, err := p.Pack(d.Args.MustGet("if").Value(r.Vars))
 		if err != nil {
 			r.AddError(errors.Errorf("%s", err))
 		}
-		if err == nil && v.Bool() {
-			return strings.ToUpper
+		return v, err
+	}
+
+	for _, d := range directives {
+		if d.Name.Name == stringDirectiveUpper {
+			v, err := packerFunc(r, d)
+			if err == nil && v.Bool() {
+				stringDirectives = append(stringDirectives, strings.ToUpper)
+			}
+		}
+		if d.Name.Name == stringDirectiveLower {
+			v, err := packerFunc(r, d)
+			if err == nil && v.Bool() {
+				stringDirectives = append(stringDirectives, strings.ToLower)
+			}
+		}
+		if d.Name.Name == stringDirectiveTitle {
+			v, err := packerFunc(r, d)
+			if err == nil && v.Bool() {
+				stringDirectives = append(stringDirectives, strings.Title)
+			}
 		}
 	}
 
-	if d := directives.Get("to_lower"); d != nil {
-		p := packer.ValuePacker{ValueType: reflect.TypeOf(false)}
-		v, err := p.Pack(d.Args.MustGet("if").Value(r.Vars))
-		if err != nil {
-			r.AddError(errors.Errorf("%s", err))
-		}
-		if err == nil && v.Bool() {
-			return strings.ToLower
-		}
-	}
-
-	if d := directives.Get("to_title"); d != nil {
-		p := packer.ValuePacker{ValueType: reflect.TypeOf(false)}
-		v, err := p.Pack(d.Args.MustGet("if").Value(r.Vars))
-		if err != nil {
-			r.AddError(errors.Errorf("%s", err))
-		}
-		if err == nil && v.Bool() {
-			return strings.Title
-		}
-	}
-
-	return nil
+	return stringDirectives
 }

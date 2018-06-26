@@ -44,13 +44,13 @@ type Selection interface {
 
 type SchemaField struct {
 	resolvable.Field
-	Alias         string
-	Args          map[string]interface{}
-	PackedArgs    reflect.Value
-	Sels          []Selection
-	Async         bool
-	FixedResult   reflect.Value
-	DirectiveFunc DirectiveFunc
+	Alias                string
+	Args                 map[string]interface{}
+	PackedArgs           reflect.Value
+	Sels                 []Selection
+	Async                bool
+	FixedResult          reflect.Value
+	StringDirectiveFuncs []StringDirectiveFunc
 }
 
 type TypeAssertion struct {
@@ -132,15 +132,15 @@ func applySelectionSet(r *Request, e *resolvable.Object, sels []query.Selection)
 				}
 
 				fieldSels := applyField(r, fe.ValueExec, field.Selections)
-				directiveFunc := makeDirective(r, field.Directives)
+				stringDirectives := extractStringDirectives(r, field.Directives)
 				flattenedSels = append(flattenedSels, &SchemaField{
-					Field:         *fe,
-					Alias:         field.Alias.Name,
-					Args:          args,
-					PackedArgs:    packedArgs,
-					Sels:          fieldSels,
-					Async:         fe.HasContext || fe.ArgsPacker != nil || fe.HasError || HasAsyncSel(fieldSels),
-					DirectiveFunc: directiveFunc,
+					Field:                *fe,
+					Alias:                field.Alias.Name,
+					Args:                 args,
+					PackedArgs:           packedArgs,
+					Sels:                 fieldSels,
+					Async:                fe.HasContext || fe.ArgsPacker != nil || fe.HasError || HasAsyncSel(fieldSels),
+					StringDirectiveFuncs: stringDirectives,
 				})
 			}
 
