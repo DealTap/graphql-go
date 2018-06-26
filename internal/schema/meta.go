@@ -61,9 +61,8 @@ var metaSrc = `
 		if: Boolean!
 	) on FIELD
 
-	# Auth directives.
-	directive @is_authenticated on QUERY | FIELD
-	directive @has_scope on QUERY | FIELD
+	# TODO: Auth directives.
+	directive @is_authenticated on QUERY
 
 	# A Directive provides a way to describe alternate runtime execution and type validation behavior in a GraphQL document.
 	#

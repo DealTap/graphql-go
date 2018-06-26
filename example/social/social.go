@@ -16,9 +16,9 @@ const Schema = `
 	}
 	
 	type Query {
-		admin(id: ID!, role: Role = ADMIN): Admin!
+		admin(id: ID!, role: Role = ADMIN): Admin! @is_authenticated
 		user(id: ID!): User!
-        search(text: String!): [SearchResult]!
+		search(text: String!): [SearchResult]!
 	}
 	
 	interface Admin {

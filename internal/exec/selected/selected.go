@@ -2,6 +2,7 @@ package selected
 
 import (
 	"fmt"
+	"net/http"
 	"reflect"
 	"sync"
 
@@ -31,6 +32,10 @@ func ApplyOperation(r *Request, s *resolvable.Schema, op *query.Operation) []Sel
 	var obj *resolvable.Object
 	switch op.Type {
 	case query.Query:
+		if authDirective(r, op.Directives) == false {
+			r.AddError(errors.Errorf("%s", http.StatusText(http.StatusUnauthorized)))
+			return nil
+		}
 		obj = s.Query.(*resolvable.Object)
 	case query.Mutation:
 		obj = s.Mutation.(*resolvable.Object)
