@@ -238,24 +238,32 @@ func validateInput(objType common.Type, varName string, variables map[string]int
 		}
 	}
 
-	if inputObj, ok := objType.(*schema.InputObject); ok {
-		if nestedVariables, ok := value.(map[string]interface{}); ok {
-			foundCount := 0
-			for _, inputVal := range inputObj.Values {
-				t, err := common.ResolveType(inputVal.Type, sch.schema.Resolve)
-				if err != nil {
-					return err
-				}
+	if nestedVariables, ok := value.(map[string]interface{}); ok {
+		var nestedObject *schema.InputObject
 
-				qErr := validateInput(t, inputVal.Name.Name, nestedVariables, sch)
-				if qErr == nil {
-					foundCount++
-				}
-			}
+		if inputObj, ok := objType.(*schema.InputObject); ok {
+			nestedObject = inputObj
+		} else if inputObj, ok := objType.(*common.NonNull); ok {
+			nestedObject = inputObj.OfType.(*schema.InputObject)
+		} else {
+			return err
+		}
 
-			if foundCount != len(nestedVariables) {
+		foundCount := 0
+		for _, inputVal := range nestedObject.Values {
+			t, err := common.ResolveType(inputVal.Type, sch.schema.Resolve)
+			if err != nil {
 				return err
 			}
+
+			qErr := validateInput(t, inputVal.Name.Name, nestedVariables, sch)
+			if qErr == nil {
+				foundCount++
+			}
+		}
+
+		if foundCount != len(nestedVariables) {
+			return err
 		}
 	}
 
