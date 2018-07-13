@@ -176,6 +176,12 @@ func (s *Schema) exec(ctx context.Context, queryString string, operationName str
 		if err != nil {
 			return &Response{Errors: []*errors.QueryError{err}}
 		}
+
+		err = validateInput(t, v.Name.Name, variables, *s)
+		if err != nil {
+			return &Response{Errors: []*errors.QueryError{err}}
+		}
+
 		varTypes[v.Name.Name] = introspection.WrapType(t)
 	}
 	traceCtx, finish := s.tracer.TraceQuery(ctx, queryString, operationName, variables, varTypes)
@@ -207,4 +213,59 @@ func getOperation(document *query.Document, operationName string) (*query.Operat
 		return nil, fmt.Errorf("no operation with name %q", operationName)
 	}
 	return op, nil
+}
+
+func validateInput(objType common.Type, varName string, variables map[string]interface{}, sch Schema) *errors.QueryError {
+	var err *errors.QueryError
+	err = &errors.QueryError {
+		Message: "Missing required parameters",
+	}
+
+	value := variables[varName]
+
+	if value == nil {
+		found := false
+		for vars := range variables {
+			if varName == vars {
+				found = true
+				break
+			}
+		}
+
+		if found == false {
+			err.Message = fmt.Sprintf("%s%s%s", "Expected: '", varName, "'")
+			return err
+		}
+	}
+
+	if nestedVariables, ok := value.(map[string]interface{}); ok {
+		var nestedObject *schema.InputObject
+
+		if inputObj, ok := objType.(*schema.InputObject); ok {
+			nestedObject = inputObj
+		} else if inputObj, ok := objType.(*common.NonNull); ok {
+			nestedObject = inputObj.OfType.(*schema.InputObject)
+		} else {
+			return err
+		}
+
+		foundCount := 0
+		for _, inputVal := range nestedObject.Values {
+			t, err := common.ResolveType(inputVal.Type, sch.schema.Resolve)
+			if err != nil {
+				return err
+			}
+
+			qErr := validateInput(t, inputVal.Name.Name, nestedVariables, sch)
+			if qErr == nil {
+				foundCount++
+			}
+		}
+
+		if foundCount != len(nestedVariables) {
+			return err
+		}
+	}
+
+	return nil
 }
